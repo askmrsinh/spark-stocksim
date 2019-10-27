@@ -1,5 +1,5 @@
 # Homework 3
-### Description: you will gain experience with theSpark computational model in AWS cloud datacenter.
+### Description: you will gain experience with the Spark computational model in AWS cloud datacenter.
 ### Grade: 10% + bonus up to 3% for implementing this simulator using M/R and comparing it to your Spark program on [AWS EMR](https://aws.amazon.com/emr).
 #### You can obtain this Git repo using the command ```git clone git@bitbucket.org:cs441_fall2019/homework3.git```. You cannot push your code into this repo, otherwise, your grade for this homework will be ZERO!
 #### Preliminaries are the same as in the previous homeworks.
