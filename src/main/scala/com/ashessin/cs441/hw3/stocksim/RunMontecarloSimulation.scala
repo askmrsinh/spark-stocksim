@@ -1,9 +1,10 @@
 package com.ashessin.cs441.hw3.stocksim
 
 import org.apache.commons.math3.distribution.NormalDistribution
-import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.slf4j.LoggerFactory
+
+
 
 object RunMontecarloSimulation {
   private val logger = LoggerFactory.getLogger("Montecarlo")
@@ -11,6 +12,9 @@ object RunMontecarloSimulation {
   def main(args: Array[String]): Unit = {
 
     logger.info("Starting Montecarlo")
+    // user's fault if they dont give a usable absolute path
+    val stocksDataFolderPath: String = args(0)
+    val stockSymbol: String = args(1).toUpperCase
 
     // Zeppelin creates and injects sc (SparkContext) and sqlContext (HiveContext or SqlContext)
     // So you don't need create them manually
@@ -22,10 +26,7 @@ object RunMontecarloSimulation {
       .getOrCreate()
     val simulation = new MontecarloSimulation(spark)
 
-    val stockSymbol: String = "MSFT"
-    val stockSchema: StructType = simulation.createStockSchema(stockSymbol)
-
-    val stockDF: DataFrame = simulation.readStockFile(stockSymbol, stockSchema)
+    val stockDF: DataFrame = simulation.readStockFile(stocksDataFolderPath, stockSymbol)
     stockDF.createOrReplaceTempView("stockDF")
     if (logger.isDebugEnabled()) {
       stockDF.printSchema()
@@ -44,30 +45,20 @@ object RunMontecarloSimulation {
 
     val normalDistribution: NormalDistribution = new NormalDistribution(0, 1)
 
-    val dailyReturnArrayDF: DataFrame = simulation.formDailyReturnArrayDF(
-      spark,
-      timeIntervals,
-      iterations,
-      normalDistribution,
-      drift,
-      deviation
+    val dailyReturnArrayDF: DataFrame = simulation.formDailyReturnArrayDF(spark,
+      timeIntervals, iterations, normalDistribution, drift, deviation
     )
     if (logger.isDebugEnabled()) {
       dailyReturnArrayDF.printSchema()
       dailyReturnArrayDF.show(5)
     }
 
-    val priceListArrayDF: DataFrame = simulation.formPriceListsArrayDF(
-      spark,
-      stockSymbol,
-      stockDF,
-      timeIntervals,
-      iterations,
-      dailyReturnArrayDF
+    val priceListArrayDF: DataFrame = simulation.formPriceListsArrayDF(spark,
+      stockDF, timeIntervals, iterations, dailyReturnArrayDF
     )
 
-    val priceListDF: DataFrame =
-      simulation.transormArrayDataframe(spark, priceListArrayDF, iterations)
+    val priceListDF: DataFrame = simulation.transormArrayDataframe(spark,
+      priceListArrayDF, iterations)
     if (logger.isDebugEnabled()) {
       priceListDF.printSchema()
       priceListDF.show(5)
