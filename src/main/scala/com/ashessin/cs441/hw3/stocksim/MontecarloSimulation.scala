@@ -14,7 +14,7 @@ import scala.collection.mutable.ListBuffer
 /**
  * Runs Monte Carlo Simulation on stock data obtained from CSV file.
  *
- * @param spark
+ * @param spark the spark session in use
  */
 class MontecarloSimulation(private val spark: SparkSession)
   extends Serializable {
@@ -84,9 +84,9 @@ class MontecarloSimulation(private val spark: SparkSession)
   }
 
   /**
-   * Calculates the expected daily return based on stock deviation, drift.
+   * Calculates the expected daily return percent based on stock's deviation, drift.
    *
-   * @param distribution probabality distribution to use.
+   * @param distribution probability distribution to use.
    * @param drift        calculated drift for the stock
    * @param deviation    calculated standard deviation for the stock
    * @param value        some random decimal number
@@ -98,6 +98,7 @@ class MontecarloSimulation(private val spark: SparkSession)
   }
 
   /**
+   * Calculates the expected daily return value based on stock's last known closing price
    *
    * @param sparkSession       spark session in use
    * @param stockDF            a DataFrame with stock data
@@ -124,11 +125,12 @@ class MontecarloSimulation(private val spark: SparkSession)
   }
 
   /**
+   * Explodes a single valueArray column to multiple columns in a DataFrame.
    *
    * @param sparkSession    spark session in use
    * @param arrayDataFrame  a DataFrame with arrays containing daily return percentages
    * @param numberOfColumns size of the estimates for a day
-   * @return a DataFrame with numberOfColumns
+   * @return a DataFrame with numberOfColumns columns
    */
   def transormArrayDataframe(sparkSession: SparkSession,
                              arrayDataFrame: DataFrame, numberOfColumns: Int): DataFrame = {
