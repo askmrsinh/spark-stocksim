@@ -29,7 +29,7 @@ class MontecarloSimulation(private val spark: SparkSession)
    * @return a DataFrame with timestamp, close, change, pct_change, log_returns columns.
    */
   def readStockFile(stocksDataFolderPath: String, stockSymbol: String): DataFrame = {
-    val windowSpec: WindowSpec = Window.partitionBy().orderBy("timestamp")
+    val windowSpec: WindowSpec = Window.partitionBy().orderBy(asc("timestamp"))
     spark.read.format("csv")
       .option("sep", ",").option("header", "true")
       .schema(StructType {
@@ -46,6 +46,7 @@ class MontecarloSimulation(private val spark: SparkSession)
       .withColumn("pct_change", $"change" / lag("close", 1).over(windowSpec))
       .withColumn("log_returns", log1p("pct_change"))
       .drop("open", "high", "low", "volume")
+      .orderBy(asc("timestamp"))
   }
 
   /**
