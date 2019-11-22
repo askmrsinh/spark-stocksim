@@ -79,4 +79,29 @@ class MontecarloSimulation(private val spark: SparkSession)
       arrayDatafeame.withColumn("c_" + (num + 1), $"valueArray".getItem(num))
     ).drop("valueArray")
   }
+
+  def interpretSimulationResults(priceListDF: DataFrame): Unit = {
+    val priceListDFSummary: util.List[Row] = priceListDF
+      .summary("count", "mean", "stddev", "min", "5%", "50%", "95%", "max")
+      .collectAsList()
+
+    val startingPrice: Double = priceListDF.select("c_1").first().getDouble(0)
+    val daysInvested: Int = priceListDFSummary.get(0).getString(1).toInt
+    val iterations: Int = priceListDF.columns.length
+
+    // Loss/profit @ 5%
+    val worstCase: Double = priceListDFSummary.get(4).toSeq.drop(1).map(_.toString.toDouble).min
+    val worstCasePercentage = (worstCase - startingPrice) * 100 / startingPrice
+    // Loss/profit @ 50%
+    val averageCase: Double = priceListDFSummary.get(5).toSeq.drop(1).map(_.toString.toDouble).min
+    val averageCasePercentage = (averageCase - startingPrice) * 100 / startingPrice
+    // Loss/profit @ 95%
+    val bestCase: Double = priceListDFSummary.get(6).toSeq.drop(1).map(_.toString.toDouble).max
+    val bestCasePercentage = (bestCase - startingPrice) * 100 / startingPrice
+
+
+    println(daysInvested, iterations)
+    println(startingPrice)
+    println(worstCase, averageCase, bestCase)
+  }
 }

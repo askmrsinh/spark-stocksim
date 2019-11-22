@@ -27,8 +27,9 @@ object RunMontecarloSimulation {
     val simulation = new MontecarloSimulation(spark)
 
     val stockDF: DataFrame = simulation.readStockFile(stocksDataFolderPath, stockSymbol)
-    stockDF.createOrReplaceTempView("stockDF")
+
     if (logger.isDebugEnabled()) {
+      stockDF.createOrReplaceTempView("stockDF")
       stockDF.printSchema()
       stockDF.show(5)
     }
@@ -48,10 +49,6 @@ object RunMontecarloSimulation {
     val dailyReturnArrayDF: DataFrame = simulation.formDailyReturnArrayDF(spark,
       timeIntervals, iterations, normalDistribution, drift, deviation
     )
-    if (logger.isDebugEnabled()) {
-      dailyReturnArrayDF.printSchema()
-      dailyReturnArrayDF.show(5)
-    }
 
     val priceListArrayDF: DataFrame = simulation.formPriceListsArrayDF(spark,
       stockDF, timeIntervals, iterations, dailyReturnArrayDF
@@ -59,11 +56,7 @@ object RunMontecarloSimulation {
 
     val priceListDF: DataFrame = simulation.transormArrayDataframe(spark,
       priceListArrayDF, iterations)
-    if (logger.isDebugEnabled()) {
-      priceListDF.printSchema()
-      priceListDF.show(5)
-    }
-    priceListDF.createOrReplaceTempView("priceListDF")
-    priceListDF.describe().show()
+
+    simulation.interpretSimulationResults(priceListDF)
   }
 }
