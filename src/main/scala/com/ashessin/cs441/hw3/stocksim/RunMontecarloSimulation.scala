@@ -57,6 +57,6 @@ object RunMontecarloSimulation {
     val priceListDF: DataFrame = simulation.transormArrayDataframe(spark,
       priceListArrayDF, iterations)
 
-    simulation.interpretSimulationResults(priceListDF)
+    simulation.summarizeSimulationResult(priceListDF)
   }
 }

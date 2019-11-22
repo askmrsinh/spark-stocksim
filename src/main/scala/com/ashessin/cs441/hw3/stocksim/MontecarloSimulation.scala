@@ -137,13 +137,18 @@ class MontecarloSimulation(private val spark: SparkSession)
     ).drop("valueArray")
   }
 
-  def interpretSimulationResults(priceListDF: DataFrame): Unit = {
+  /**
+   * Prints a summary of Simulation results on a single stock.
+   *
+   * @param priceListDF
+   */
+  def summarizeSimulationResult(priceListDF: DataFrame): Unit = {
     val priceListDFSummary: util.List[Row] = priceListDF
       .summary("count", "mean", "stddev", "min", "5%", "50%", "95%", "max")
       .collectAsList()
 
     val startingPrice: Double = priceListDF.select("c_1").first().getDouble(0)
-    val daysInvested: Int = priceListDFSummary.get(0).getString(1).toInt
+    val simulationLength: Int = priceListDFSummary.get(0).getString(1).toInt
     val iterations: Int = priceListDF.columns.length
 
     // Loss/profit @ 5%
@@ -156,9 +161,18 @@ class MontecarloSimulation(private val spark: SparkSession)
     val bestCase: Double = priceListDFSummary.get(6).toSeq.drop(1).map(_.toString.toDouble).max
     val bestCasePercentage = (bestCase - startingPrice) * 100 / startingPrice
 
+    println(f"Length of Simulation: $simulationLength")
+    println(f"Number of iterations: $iterations")
+    println(f"Starting Price: $startingPrice%8.2f")
 
-    println(daysInvested, iterations)
-    println(startingPrice)
-    println(worstCase, averageCase, bestCase)
+    println(f"Estimated Current Market Price (worst):" +
+      f"\t$worstCase%8.2f," +
+      f"\t$worstCasePercentage%8.2f")
+    println(f"Estimated Current Market Price (average):" +
+      f"\t$averageCase%8.2f," +
+      f"\t$averageCasePercentage%8.2f")
+    println(f"Estimated Current Market Price (best):" +
+      f"\t$bestCase%8.2f," +
+      f"\t$bestCasePercentage%8.2f")
   }
 }
