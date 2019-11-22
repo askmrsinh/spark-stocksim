@@ -1,19 +1,33 @@
 package com.ashessin.cs441.hw3.stocksim
 
+import java.util
+
 import org.apache.commons.math3.distribution.AbstractRealDistribution
 import org.apache.spark.mllib.random.RandomRDDs.uniformVectorRDD
 import org.apache.spark.sql.expressions.{Window, WindowSpec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
 import scala.collection.mutable.ListBuffer
 
+/**
+ * Runs Monte Carlo Simulation on stock data obtained from CSV file.
+ *
+ * @param spark
+ */
 class MontecarloSimulation(private val spark: SparkSession)
   extends Serializable {
 
   import spark.implicits._
 
+  /**
+   * Reads CSV file for a stock and forms a Dataframe with computed columns.
+   *
+   * @param stocksDataFolderPath an absolute path to stock CSV data folder
+   * @param stockSymbol          some valid NASDAQ stock symbol
+   * @return a DataFrame with timestamp, close, change, pct_change, log_returns columns.
+   */
   def readStockFile(stocksDataFolderPath: String, stockSymbol: String): DataFrame = {
     val windowSpec: WindowSpec = Window.partitionBy().orderBy("timestamp")
     spark.read.format("csv")
@@ -34,14 +48,32 @@ class MontecarloSimulation(private val spark: SparkSession)
       .drop("open", "high", "low", "volume")
   }
 
-  def calculateStockColumnStats(df: DataFrame, c: String): (Double, Double, Double, Double) = {
-    val cVariance: Double = df.select(variance(c)).first().getDouble(0)
-    val cStddev: Double = df.select(stddev(c)).first().getDouble(0)
-    val cMean: Double = df.select(mean(df(c))).first().getDouble(0)
+  /**
+   * Calculates statistics for a column in a stock Dataframe.
+   *
+   * @param stockDF    a DataFrame with stock data
+   * @param columnName some column in the stock DataFrame
+   * @return calculated variance, standard deviation, mean and drift values
+   */
+  def calculateStockColumnStats(stockDF: DataFrame, columnName: String): (Double, Double, Double, Double) = {
+    val cVariance: Double = stockDF.select(variance(columnName)).first().getDouble(0)
+    val cStddev: Double = stockDF.select(stddev(columnName)).first().getDouble(0)
+    val cMean: Double = stockDF.select(mean(stockDF(columnName))).first().getDouble(0)
     val cDrift: Double = cMean - (0.5 * cVariance)
     (cVariance, cStddev, cMean, cDrift)
   }
 
+  /**
+   * Estimates the expected return over a period of time based on previous stock data.
+   *
+   * @param sparkSession  spark session in use
+   * @param timeIntervals number of days
+   * @param iterations    number of random value initializations
+   * @param distribution  probability distribution to use
+   * @param drift         calculated drift for a stock
+   * @param deviation     calculated standard deviation for a stock
+   * @return a DataFrame with estimated having daily return percentages
+   */
   def formDailyReturnArrayDF(sparkSession: SparkSession,
                              timeIntervals: Int, iterations: Int, distribution: AbstractRealDistribution,
                              drift: Double, deviation: Double): DataFrame = {
@@ -51,11 +83,29 @@ class MontecarloSimulation(private val spark: SparkSession)
       .map(_.toArray).toDF("valueArray")
   }
 
+  /**
+   * Calculates the expected daily return based on stock deviation, drift.
+   *
+   * @param distribution probabality distribution to use.
+   * @param drift        calculated drift for the stock
+   * @param deviation    calculated standard deviation for the stock
+   * @param value        some random decimal number
+   * @return calculated daily return for a given value
+   */
   def calculateStockDailyReturn(distribution: AbstractRealDistribution,
                                 drift: Double, deviation: Double, value: Double): Double = {
     Math.exp(drift + deviation * distribution.inverseCumulativeProbability(value))
   }
 
+  /**
+   *
+   * @param sparkSession       spark session in use
+   * @param stockDF            a DataFrame with stock data
+   * @param timeIntervals      number of days
+   * @param iterations         number of random value initializations
+   * @param dailyReturnArrayDF a DataFrame with estimated having daily return percentages
+   * @return a DataFrame with estimated having daily stock prices
+   */
   def formPriceListsArrayDF(sparkSession: SparkSession,
                             stockDF: DataFrame, timeIntervals: Int, iterations: Int,
                             dailyReturnArrayDF: DataFrame): DataFrame = {
@@ -73,10 +123,17 @@ class MontecarloSimulation(private val spark: SparkSession)
     priceList.toDF("valueArray")
   }
 
+  /**
+   *
+   * @param sparkSession    spark session in use
+   * @param arrayDataFrame  a DataFrame with arrays containing daily return percentages
+   * @param numberOfColumns size of the estimates for a day
+   * @return a DataFrame with numberOfColumns
+   */
   def transormArrayDataframe(sparkSession: SparkSession,
-                             arrayDatafeame: DataFrame, numberOfColumns: Int): DataFrame = {
-    (0 until numberOfColumns).foldLeft(arrayDatafeame)((arrayDatafeame, num) =>
-      arrayDatafeame.withColumn("c_" + (num + 1), $"valueArray".getItem(num))
+                             arrayDataFrame: DataFrame, numberOfColumns: Int): DataFrame = {
+    (0 until numberOfColumns).foldLeft(arrayDataFrame)((arrayDataFrame, num) =>
+      arrayDataFrame.withColumn("c_" + (num + 1), $"valueArray".getItem(num))
     ).drop("valueArray")
   }
 
