@@ -7,7 +7,7 @@ import org.slf4j.LoggerFactory
 
 
 object RunMontecarloSimulation {
-  private val logger = LoggerFactory.getLogger("Montecarlo")
+  private val logger = LoggerFactory.getLogger("RunMontecarloSimulation")
 
   def main(args: Array[String]): Unit = {
 
