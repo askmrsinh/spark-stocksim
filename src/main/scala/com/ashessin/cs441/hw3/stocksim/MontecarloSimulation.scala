@@ -42,9 +42,13 @@ class MontecarloSimulation(private val spark: SparkSession)
           StructField("volume", IntegerType, nullable = true))
       })
       .load(stocksDataFolderPath + "daily_" + stockSymbol + ".csv")
+      // calculate day to day change in closing stock price
       .withColumn("change", $"close" - lag("close", 1).over(windowSpec))
+      // calculate day to day percentage change in closing stock price
       .withColumn("pct_change", $"change" / lag("close", 1).over(windowSpec))
+      // calculate natural logarithm of percentage change in closing stock price plus one
       .withColumn("log_returns", log1p("pct_change"))
+      // drop columns that are not required in this simulation
       .drop("open", "high", "low", "volume")
       .orderBy(asc("timestamp"))
   }
@@ -105,8 +109,8 @@ class MontecarloSimulation(private val spark: SparkSession)
    * @param stockDF            a DataFrame with stock data
    * @param timeIntervals      number of days
    * @param iterations         number of random value initializations
-   * @param dailyReturnArrayDF a DataFrame with estimated having daily return percentages
-   * @return a DataFrame with estimated having daily stock prices
+   * @param dailyReturnArrayDF a DataFrame with estimated daily return percentages
+   * @return a DataFrame with estimated daily stock prices
    */
   def formPriceListsArrayDF(sparkSession: SparkSession,
                             stockDF: DataFrame, timeIntervals: Int, iterations: Int,
@@ -143,7 +147,7 @@ class MontecarloSimulation(private val spark: SparkSession)
   /**
    * Prints a summary of Simulation results on a single stock.
    *
-   * @param priceListDF
+   * @param priceListDF a DataFrame with estimated daily stock prices
    */
   def summarizeSimulationResult(priceListDF: DataFrame): Unit = {
     val priceListDFSummary: util.List[Row] = priceListDF
