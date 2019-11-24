@@ -37,7 +37,7 @@ class InvestmentBroker(private val spark: SparkSession,
       Row(id, stockSymbol, x.getDouble(0), change, pct_change, mean_pct_change)
     })
   }
-  var remainingFunds = investmentValue
+  var remainingFunds: Double = investmentValue
 
   // TODO: Cleanup, rethink calculation approach
   def dummyStrategy(): Unit = {
@@ -52,7 +52,7 @@ class InvestmentBroker(private val spark: SparkSession,
         investmentResults += Row.fromSeq(sell(observation, mean_pct_change, predictedValue))
     })
 
-    var allStockEstimatesDF: Dataset[Row] = spark.sqlContext.createDataFrame(
+    val allStockEstimatesDF: Dataset[Row] = spark.sqlContext.createDataFrame(
       spark.sparkContext.parallelize(investmentResults.to[collection.immutable.Seq]),
       StructType {
         Array(
@@ -91,7 +91,7 @@ class InvestmentBroker(private val spark: SparkSession,
   def sell(observation: Row,
            mean_pct_change: Double, predictedValue: Double): Seq[Any] = {
     var quantity = 0d
-    val currentHolding: Unit = investmentResults.filter(_.getString(1) == observation.getString(1)).foreach(
+    investmentResults.filter(_.getString(1) == observation.getString(1)).foreach(
       x => {
         quantity = quantity + x.getDouble(6)
       }
