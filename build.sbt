@@ -2,16 +2,14 @@ name := "hw3"
 
 version := "0.1"
 
-scalaVersion := "2.12.10"
+scalaVersion := "2.11.12"
 
 mainClass in(Compile, run) := Some("com.ashessin.cs441.hw3.stocksim.RunMontecarloSimulation")
 mainClass in(Compile, packageBin) := Some("com.ashessin.cs441.hw3.stocksim.RunMontecarloSimulation")
 
 assemblyMergeStrategy in assembly := {
-  case "main.log" => MergeStrategy.discard
-  case x =>
-    val oldStrategy = (assemblyMergeStrategy in assembly).value
-    oldStrategy(x)
+  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case x => MergeStrategy.last
 }
 assemblyOption in assembly := (assemblyOption in assembly).value.copy(cacheOutput = false)
 
