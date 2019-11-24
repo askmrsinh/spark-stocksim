@@ -4,8 +4,6 @@ import org.apache.commons.math3.distribution.NormalDistribution
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.slf4j.LoggerFactory
 
-import scala.collection.mutable.ListBuffer
-
 
 object RunMontecarloSimulation {
   private val logger = LoggerFactory.getLogger("RunMontecarloSimulation")
@@ -16,9 +14,11 @@ object RunMontecarloSimulation {
     // user's fault if they dont give a usable absolute path
     val stocksDataFolderPath: String = args(0)
     val stockSymbols: Array[String] = args(1).toUpperCase.split(",")
+    val (timeIntervals, iterations) = (args(2).toInt, args(3).toInt)
+    val availableFunds = args(4).toDouble
 
-    // Zeppelin creates and injects sc (SparkContext) and sqlContext (HiveContext or SqlContext)
-    // So you don't need create them manually
+    // NOTE: Zeppelin creates and injects sc (SparkContext) and sqlContext (HiveContext or SqlContext)
+    //       So you don't need create them manually
 
     // set up environment
     val spark: SparkSession = SparkSession.builder
@@ -27,12 +27,13 @@ object RunMontecarloSimulation {
       .getOrCreate()
       .newSession()
 
-    var priceListDFs: ListBuffer[DataFrame] = new ListBuffer[DataFrame]
+    var priceListDFs: scala.collection.mutable.Map[String, DataFrame] =
+      scala.collection.mutable.Map[String, DataFrame]()
 
     stockSymbols.par.foreach(stockSymbol => {
       logger.info(f"Processing stock data for $stockSymbol symbol.")
-      val simulation = new MontecarloSimulation(spark)
-      val stockDF: DataFrame = simulation.readStockFile(stocksDataFolderPath, stockSymbol)
+      val simulation = new MontecarloSimulation(spark, stocksDataFolderPath, stockSymbol)
+      val stockDF: DataFrame = simulation.readStockFile
 
       if (logger.isDebugEnabled()) {
         stockDF.createOrReplaceTempView("stockDF")
@@ -47,8 +48,6 @@ object RunMontecarloSimulation {
       logger.info("{} stock returns mean: {}", stockSymbol, mean)
       logger.info("{} stock returns drift: {}", stockSymbol, drift)
 
-      val (timeIntervals, iterations) = (28, 10)
-
       val dailyReturnArrayDF: DataFrame = simulation.formDailyReturnArrayDF(spark,
         timeIntervals, iterations, new NormalDistribution(0, 1), drift, deviation
       )
@@ -58,11 +57,12 @@ object RunMontecarloSimulation {
 
       val priceListDF: DataFrame = simulation.transormArrayDataframe(spark,
         priceListArrayDF, iterations)
-      simulation.summarizeSimulationResult(priceListDF)
+      simulation.summarizeSimulationResult(stockSymbol, priceListDF)
 
-      priceListDFs += priceListDF
+      priceListDFs += (stockSymbol -> priceListDF)
     })
-    val broker = new InvestmentBroker(spark)
-    broker.makeDynamicInvestment(1000d, priceListDFs.toList)
+
+    val broker = new InvestmentBroker(spark, priceListDFs, availableFunds)
+    broker.dummyStrategy()
   }
 }

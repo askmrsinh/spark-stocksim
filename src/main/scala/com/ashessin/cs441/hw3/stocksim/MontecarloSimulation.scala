@@ -14,9 +14,12 @@ import scala.collection.mutable.ListBuffer
 /**
  * Runs Monte Carlo Simulation on stock data obtained from CSV file.
  *
- * @param spark the spark session in use
+ * @param spark                the spark session in use
+ * @param stocksDataFolderPath an absolute path to stock CSV data folder
+ * @param stockSymbol          some valid NASDAQ stock symbol
  */
-class MontecarloSimulation(private val spark: SparkSession)
+class MontecarloSimulation(private val spark: SparkSession,
+                           private val stocksDataFolderPath: String, private val stockSymbol: String)
   extends Serializable {
 
   import spark.implicits._
@@ -24,11 +27,9 @@ class MontecarloSimulation(private val spark: SparkSession)
   /**
    * Reads CSV file for a stock and forms a Dataframe with computed columns.
    *
-   * @param stocksDataFolderPath an absolute path to stock CSV data folder
-   * @param stockSymbol          some valid NASDAQ stock symbol
-   * @return a DataFrame with timestamp, close, change, pct_change, log_returns columns.
    */
-  def readStockFile(stocksDataFolderPath: String, stockSymbol: String): DataFrame = {
+  val readStockFile: DataFrame = {
+    // small CSV files not using partitioning
     val windowSpec: WindowSpec = Window.partitionBy().orderBy(asc("timestamp"))
     spark.read.format("csv")
       .option("sep", ",").option("header", "true")
@@ -149,7 +150,7 @@ class MontecarloSimulation(private val spark: SparkSession)
    *
    * @param priceListDF a DataFrame with estimated daily stock prices
    */
-  def summarizeSimulationResult(priceListDF: DataFrame): Unit = {
+  def summarizeSimulationResult(stockSymbol: String, priceListDF: DataFrame): Unit = {
     val priceListDFSummary: util.List[Row] = priceListDF
       .summary("count", "mean", "stddev", "min", "5%", "50%", "95%", "max")
       .collectAsList()
@@ -168,6 +169,7 @@ class MontecarloSimulation(private val spark: SparkSession)
     val bestCase: Double = priceListDFSummary.get(6).toSeq.drop(1).map(_.toString.toDouble).max
     val bestCasePercentage = (bestCase - startingPrice) * 100 / startingPrice
 
+    println(f"Simulation estimation summary for $stockSymbol symbol.")
     println(f"Length of Simulation: $simulationLength")
     println(f"Number of iterations: $iterations")
     println(f"Starting Price: $startingPrice%8.2f")
