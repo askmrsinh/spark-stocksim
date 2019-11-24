@@ -5,6 +5,7 @@ import org.apache.spark.sql.types._
 
 import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.ParIterable
+import scala.math._
 
 class InvestmentBroker(private val spark: SparkSession,
                        private val priceListDFs: scala.collection.mutable.Map[String, DataFrame],
@@ -63,36 +64,45 @@ class InvestmentBroker(private val spark: SparkSession,
           StructField("mean_pct_change", DoubleType, nullable = true),
           StructField("quantityBought", DoubleType, nullable = true),
           StructField("marketCost", DoubleType, nullable = true),
-          StructField("remainingFunds", DoubleType, nullable = true))
+          StructField("remainingFunds", DoubleType, nullable = true),
+          StructField("outlook", StringType, nullable = true))
       })
     allStockEstimatesDF.show(200)
   }
 
   def buy(observation: Row,
           mean_pct_change: Double, predictedValue: Double): Seq[Any] = {
-    val w: Double = if (mean_pct_change == 0) predictedValue / startingPriceMap.values.sum else mean_pct_change
     var marketCost = 0d
     var quantityBought = 0d
     if (remainingFunds > predictedValue) {
-      marketCost = w * remainingFunds / startingPriceMap.size
-      quantityBought = (marketCost / predictedValue)
+      if (mean_pct_change == 0) {
+        marketCost = investmentValue / startingPriceMap.size
+      } else {
+        marketCost = remainingFunds / startingPriceMap.size
+      }
+      quantityBought = floor(marketCost / predictedValue)
     } else {
       println(f"Insufficient funds to buy ${observation.getString(1)} @ ${predictedValue}")
     }
-    remainingFunds = remainingFunds - marketCost
-    observation.toSeq ++ Seq(quantityBought, marketCost, remainingFunds)
+    remainingFunds = remainingFunds - (quantityBought * predictedValue)
+    observation.toSeq ++ Seq(quantityBought, quantityBought * predictedValue, remainingFunds, "BUY")
   }
 
   def sell(observation: Row,
            mean_pct_change: Double, predictedValue: Double): Seq[Any] = {
-    val currentHolding = investmentResults.filter(_.getString(1) == observation.getString(1)).last
+    var quantity = 0d
+    val currentHolding: Unit = investmentResults.filter(_.getString(1) == observation.getString(1)).foreach(
+      x => {
+        quantity = quantity + x.getDouble(6)
+      }
+    )
     var marketCost = 0d
     var quantitySold = 0d
-    if (currentHolding.size > 0) {
-      quantitySold = currentHolding.getDouble(6)
-      marketCost = quantitySold * predictedValue
+    if (quantity > 0) {
+      quantitySold = quantity
+      marketCost = abs(quantitySold) * predictedValue
     }
     remainingFunds = remainingFunds + marketCost
-    observation.toSeq ++ Seq(-quantitySold, marketCost, remainingFunds)
+    observation.toSeq ++ Seq(-quantitySold, marketCost, remainingFunds, "SELL")
   }
 }
