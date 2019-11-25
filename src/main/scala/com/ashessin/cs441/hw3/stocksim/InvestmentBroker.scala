@@ -1,11 +1,10 @@
 package com.ashessin.cs441.hw3.stocksim
 
-import org.apache.spark.sql._
 import org.apache.spark.sql.types._
+import org.apache.spark.sql.{Row, _}
 
 import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.ParIterable
-import scala.math._
 
 class InvestmentBroker(private val spark: SparkSession,
                        private val priceListDFs: scala.collection.mutable.Map[String, DataFrame],
@@ -38,8 +37,18 @@ class InvestmentBroker(private val spark: SparkSession,
     })
   }
   var remainingFunds: Double = investmentValue
-
   // TODO: Cleanup, rethink calculation approach
+
+  /**
+   * A dummy investment strategy to buy and sell stocks on any given day (observation)
+   *
+   * On the first day, equal amount of money is allocated for buying each of the symbols
+   * in the portfolio. There after, stocks are bought/sold when the mean percentage change
+   * in the past days of simulation is greater/less than 0 respectively for each symbol.
+   *
+   * Buying happens incrementally, where as selling is cumulative.
+   * On the last day, all stocks are sold and profit/loss is booked.
+   */
   def dummyStrategy(): Unit = {
 
     allStockEstimates.to[scala.collection.immutable.Seq].sortBy(_.getInt(0)).foreach(observation => {
@@ -51,6 +60,8 @@ class InvestmentBroker(private val spark: SparkSession,
       else
         investmentResults += Row.fromSeq(sell(observation, mean_pct_change, predictedValue))
     })
+
+    sellAll()
 
     val allStockEstimatesDF: Dataset[Row] = spark.sqlContext.createDataFrame(
       spark.sparkContext.parallelize(investmentResults.to[collection.immutable.Seq]),
@@ -67,7 +78,11 @@ class InvestmentBroker(private val spark: SparkSession,
           StructField("remainingFunds", DoubleType, nullable = true),
           StructField("outlook", StringType, nullable = true))
       })
-    allStockEstimatesDF.show(200)
+    allStockEstimatesDF.show(252 * startingPriceMap.size)
+
+    println(f"Investment amount: ${investmentValue}")
+    println(f"Amount at the end of simulation: ${remainingFunds}")
+    println(f"change: ${(remainingFunds - investmentValue) * 100 / investmentValue}%%")
   }
 
   def buy(observation: Row,
@@ -80,12 +95,22 @@ class InvestmentBroker(private val spark: SparkSession,
       } else {
         marketCost = remainingFunds / startingPriceMap.size
       }
-      quantityBought = floor(marketCost / predictedValue)
+      quantityBought = math.floor(marketCost / predictedValue)
     } else {
-      println(f"Insufficient funds to buy ${observation.getString(1)} @ ${predictedValue}")
+      val day = observation.getInt(0)
+      println(f"Insufficient funds to buy ${observation.getString(1)} @ ${predictedValue} on ${day}.")
     }
     remainingFunds = remainingFunds - (quantityBought * predictedValue)
     observation.toSeq ++ Seq(quantityBought, quantityBought * predictedValue, remainingFunds, "BUY")
+  }
+
+  def sellAll(): Unit = {
+    allStockEstimates.to[scala.collection.immutable.Seq].sortBy(_.getInt(0))
+      .takeRight(startingPriceMap.size).foreach(observation => {
+      val mean_pct_change = observation.getDouble(5)
+      val predictedValue = observation.getDouble(2)
+      investmentResults += Row.fromSeq(sell(observation, mean_pct_change, predictedValue))
+    })
   }
 
   def sell(observation: Row,
@@ -100,7 +125,7 @@ class InvestmentBroker(private val spark: SparkSession,
     var quantitySold = 0d
     if (quantity > 0) {
       quantitySold = quantity
-      marketCost = abs(quantitySold) * predictedValue
+      marketCost = math.abs(quantitySold) * predictedValue
     }
     remainingFunds = remainingFunds + marketCost
     observation.toSeq ++ Seq(-quantitySold, marketCost, remainingFunds, "SELL")
