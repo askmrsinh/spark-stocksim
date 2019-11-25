@@ -1,3 +1,5 @@
+![Expected future stock prices for MSFT](src/main/resources/assets/spark-stocksim-4.png)
+
 ```
 This project uses Spark framework to run Monte Carlo simulation on historical stock prices.
 Historical data is read from CSV files and dift for a symbol is calculated. We then use random distribution on the last
@@ -17,7 +19,7 @@ INDEX
 4. Setup Instructions
 5. Usage Details
 6. Visualization and Demo
-7. Map Reduce Implementation
+8. Map Reduce Implementation
 
 
 ------------------------------
