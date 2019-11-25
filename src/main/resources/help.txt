@@ -1,0 +1,43 @@
+java com.ashessin.cs441.hw3.stocksim.Start <option> \
+    <absolute_csv_directory_path> <symbols> <period> <iterations> <value>
+
+<option>:
+	[--simulate, RunMontecarloSimulation | 
+	 --configFile]
+
+
+<absolute_csv_directory_path>:
+    fully qualified csv data directory URI.
+
+    example paths:
+        file:///absolute-path-to-input-directory/
+        hdfs://localhost:9000/absolute-path-to-input-directory/
+        s3://bucket-name/absolute-path-to-input-directory/
+        gs://bucket-name/absolute-path-to-input-directory/
+
+<symbols>
+    a comma separated list of NASDAQ stock symbols, eg. MSFT,APPAL,AMZN
+
+<period>
+	period of simulation
+
+<iterations>
+	number of iterations for each day
+
+<value>
+	the investment amount to start with
+
+For execution through custom config file, please see src/main/resources/reference.conf for fields.
+
+examples:
+
+	java com.ashessin.cs441.hw3.stocksim.Start --configFile \
+    	   file:///absolute-path-to-config-file.conf
+
+	java com.ashessin.cs441.hw3.stocksim.Start \
+    	--simulate file:///absolute-path-to-input-directory/ \
+	    MSFT,APPAL,AMZN 28 10 10000
+
+	java com.ashessin.cs441.hw3.stocksim.Start \
+    	--simulate hdfs://localhost:9000/absolute-path-to-input-directory/ \
+	    MSFT,APPAL,AMZN 28 10 10000
