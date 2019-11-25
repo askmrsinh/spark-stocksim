@@ -4,8 +4,8 @@ version := "0.1"
 
 scalaVersion := "2.11.12"
 
-mainClass in(Compile, run) := Some("com.ashessin.cs441.hw3.stocksim.RunMontecarloSimulation")
-mainClass in(Compile, packageBin) := Some("com.ashessin.cs441.hw3.stocksim.RunMontecarloSimulation")
+mainClass in(Compile, run) := Some("com.ashessin.cs441.hw3.stocksim.Start")
+mainClass in(Compile, packageBin) := Some("com.ashessin.cs441.hw3.stocksim.Start")
 
 assemblyMergeStrategy in assembly := {
   case PathList("META-INF", xs @ _*) => MergeStrategy.discard
