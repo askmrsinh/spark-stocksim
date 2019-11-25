@@ -40,7 +40,7 @@ class InvestmentBroker(private val spark: SparkSession,
   // TODO: Cleanup, rethink calculation approach
 
   /**
-   * A dummy investment strategy to buy and sell stocks on any given day (observation)
+   * A dummy investment strategy to buy and sell stocks on any given day (observation).
    *
    * On the first day, equal amount of money is allocated for buying each of the symbols
    * in the portfolio. There after, stocks are bought/sold when the mean percentage change
@@ -80,8 +80,8 @@ class InvestmentBroker(private val spark: SparkSession,
       })
     allStockEstimatesDF.show(252 * startingPriceMap.size)
 
-    println(f"Investment amount: ${investmentValue}")
-    println(f"Amount at the end of simulation: ${remainingFunds}")
+    println(f"Investment amount: $investmentValue")
+    println(f"Amount at the end of simulation: $remainingFunds")
     println(f"change: ${(remainingFunds - investmentValue) * 100 / investmentValue}%%")
   }
 
@@ -98,7 +98,7 @@ class InvestmentBroker(private val spark: SparkSession,
       quantityBought = math.floor(marketCost / predictedValue)
     } else {
       val day = observation.getInt(0)
-      println(f"Insufficient funds to buy ${observation.getString(1)} @ ${predictedValue} on ${day}.")
+      println(f"Insufficient funds to buy ${observation.getString(1)} @ $predictedValue on $day.")
     }
     remainingFunds = remainingFunds - (quantityBought * predictedValue)
     observation.toSeq ++ Seq(quantityBought, quantityBought * predictedValue, remainingFunds, "BUY")
@@ -116,10 +116,9 @@ class InvestmentBroker(private val spark: SparkSession,
   def sell(observation: Row,
            mean_pct_change: Double, predictedValue: Double): Seq[Any] = {
     var quantity = 0d
-    investmentResults.filter(_.getString(1) == observation.getString(1)).foreach(
-      x => {
-        quantity = quantity + x.getDouble(6)
-      }
+    investmentResults.filter(_.getString(1) == observation.getString(1)).foreach(x => {
+      quantity = quantity + x.getDouble(6)
+    }
     )
     var marketCost = 0d
     var quantitySold = 0d

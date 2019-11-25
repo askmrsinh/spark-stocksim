@@ -35,10 +35,10 @@ object RunMontecarloSimulation {
       val simulation = new MontecarloSimulation(spark, stocksDataFolderPath, stockSymbol)
       val stockDF: DataFrame = simulation.readStockFile
 
+      stockDF.show(5)
       if (logger.isDebugEnabled()) {
         stockDF.createOrReplaceTempView("stockDF")
         stockDF.printSchema()
-        stockDF.show(5)
       }
 
       val (variance, deviation, mean, drift) =
@@ -51,14 +51,17 @@ object RunMontecarloSimulation {
       val dailyReturnArrayDF: DataFrame = simulation.formDailyReturnArrayDF(spark,
         timeIntervals, iterations, new NormalDistribution(0, 1), drift, deviation
       )
+      dailyReturnArrayDF.show(5)
       val priceListArrayDF: DataFrame = simulation.formPriceListsArrayDF(spark,
         stockDF, timeIntervals, iterations, dailyReturnArrayDF
       )
+      priceListArrayDF.show(5)
 
       val priceListDF: DataFrame = simulation.transormArrayDataframe(spark,
         priceListArrayDF, iterations)
-      simulation.summarizeSimulationResult(stockSymbol, priceListDF)
+      priceListDF.show(5)
 
+      simulation.summarizeSimulationResult(stockSymbol, priceListDF)
       priceListDFs += (stockSymbol -> priceListDF)
     })
 

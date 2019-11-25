@@ -90,7 +90,7 @@ class MontecarloSimulation(private val spark: SparkSession,
   }
 
   /**
-   * Calculates the expected daily return percent based on stock's deviation, drift.
+   * Calculates the expected daily return based on stock's deviation, drift.
    *
    * @param distribution probability distribution to use.
    * @param drift        calculated drift for the stock
