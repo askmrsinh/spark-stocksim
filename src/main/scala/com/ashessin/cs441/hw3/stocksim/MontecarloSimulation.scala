@@ -174,13 +174,13 @@ class MontecarloSimulation(private val spark: SparkSession,
     println(f"Number of iterations: $iterations")
     println(f"Starting Price: $startingPrice%8.2f")
 
-    println(f"Estimated Current Market Price (worst)  : " +
+    println(f"Estimated Market Price (worst)  : " +
       f"$worstCase%8.2f," +
       f"$worstCasePercentage%8.2f")
-    println(f"Estimated Current Market Price (average): " +
+    println(f"Estimated Market Price (average): " +
       f"$averageCase%8.2f," +
       f"$averageCasePercentage%8.2f")
-    println(f"Estimated Current Market Price (best)   : " +
+    println(f"Estimated Market Price (best)   : " +
       f"$bestCase%8.2f," +
       f"$bestCasePercentage%8.2f")
   }
