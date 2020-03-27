@@ -1,6 +1,6 @@
-![Expected future stock prices for MSFT](src/main/resources/assets/spark-stocksim-4.png)
+Spark StockSim — Monte Carlo stock simulation in Spark
+======================================================
 
-```
 This project uses Spark framework to run Monte Carlo simulation on historical stock prices.
 Historical data is read from CSV files and dift for a symbol is calculated. We then use random distribution on the last
 known price to estimate future prices for a set number of days throughout a number of iterations.
@@ -10,33 +10,36 @@ on them. Profits and losses are recorded at the end of the simulation in a tabul
 The scripts in https://github.com/user501254/BD_STTP_2016.git can be used for semi-automated 
 local Hadoop and Spark setup or for setup on AWS Amazon Elastic Compute Cloud (EC2), Google Compute Engine (GCE).
 
+![Expected future stock prices for MSFT](src/main/resources/assets/spark-stocksim-4.png)
+
 -----
 INDEX
 -----
-1. About the Alpha Vantage API
-2. Some Important Files
-3. Application Design
-4. Setup Instructions
-5. Usage Details
-6. Visualization and Demo
-8. Map Reduce Implementation
+
+1. [About the Alpha Vantage API](#1-about-the-alpha-vantage-api)
+2. [Some Important Files](#2-some-important-files)
+3. [Application Design](#3-application-design)
+4. [Setup Instructions](#4-setup-instructions)
+5. [Usage Details](#5-usage-details)
+6. [Visualization and Demo](#6-visualization-and-demo)
+7. [Map Reduce Implementation](#7-map-reduce-implementation)
 
 
-------------------------------
-1. About the Alpha Vantage API
-------------------------------
+
+1\. About the Alpha Vantage API
+-------------------------------
 
 Alpha Vantage APIs are grouped into four categories: (1) Stock Time Series Data, 
 (2) Physical and Digital/Crypto Currencies (e.g., Bitcoin), (3) Technical Indicators, and (4) Sector Performances.
 For this project, we use the Stock Time Series Data to get historical prices for a given stock.
 
-API Documentation:
-    https://www.alphavantage.co/documentation/
+- API Documentation: https://www.alphavantage.co/documentation/
 
-Get Free API Key:
-    https://www.alphavantage.co/support/#api-key
+- Get Free API Key: https://www.alphavantage.co/support/#api-key
 
-Sample data for MSFT symbol:
+- Sample data for MSFT symbol:
+
+    ```text
     timestamp,open,high,low,close,volume
     2019-11-20,150.3100,150.8400,148.4600,149.6200,23118304
     2019-11-19,150.8800,151.3300,150.2000,150.3900,23935700
@@ -46,12 +49,14 @@ Sample data for MSFT symbol:
     .
     1999-11-23,89.2500,91.3750,88.3750,89.6250,70787400
     1999-11-22,89.6250,90.3718,88.4380,89.8130,90596600
+    ```
 
 
------------------------
-2. Some Important Files
------------------------
 
+2\. Some Important Files
+------------------------
+
+```text
 hw3/src/main/resources/bin
     downloadsymboldata.sh                   bash script to download historical data for a given stock symbol (eg. MSFT)
     downloadsymbolslist.sh                  bash script to download a list of known symbols on NASDQ NASDAQ
@@ -61,20 +66,24 @@ hw3/src/main/scala/com/ashessin/cs441/hw3/stocksim/
     MontecarloSimulation                    core to Monte Carlo Simulation on stock data obtained from CSV file
     RunMontecarloSimulation.scala           utility object file to connect above two classes
 
+```
 
----------------------
-3. Application Design
----------------------
+
+
+3\. Application Design
+----------------------
 
 The simulation approach is from the book "Python for Finance: Analyze Big Financial Data, Yves Hilpisch".
 Also, https://www.youtube.com/watch?v=3gcLRU24-w0&feature=youtu.be&t=204.
 
 First we read the historical (closing) prices for a symbol from CSV into a DataFrame. Additional columns are computed on
 the fly and added to the dataframe. These are:
-    1. change      - daily stock price change for a given symbol    (price(n) - price(n-1))
-    2. pct_change  - daily percentage change for a given symbol     (price(n) - price(n-1)) / price(n-1)
-    3. log_returns - natural log of pct_change + 1                  ln(((price(n) - price(n-1)) / price(n-1)) + 1)
-    
+
+1. change      - daily stock price change for a given symbol    `(price(n) - price(n-1))`
+2. pct_change  - daily percentage change for a given symbol     `(price(n) - price(n-1)) / price(n-1)`
+3. log_returns - natural log of pct_change + 1                  `ln(((price(n) - price(n-1)) / price(n-1)) + 1)`
+
+    ```text
     Table: Historical data for MSFT symbol with additional columns
     +----------+------+-----------+--------------------+--------------------+
     | timestamp| close|     change|          pct_change|         log_returns|
@@ -86,25 +95,28 @@ the fly and added to the dataframe. These are:
     |1999-11-29|90.188|-0.93699646|-0.01028254002700...|-0.01033577055278...|
     +----------+------+-----------+--------------------+--------------------+
     only showing top 5 rows
+   ```
 
 
 We will use data in `log_returns` column to calculate overall stock price drift and standard deviation for use in our
-Monte Carlo simulation. Using logarithmic return is better, see why:
+Monte Carlo simulation. Using logarithmic return is better, see why:  
     https://quantivity.wordpress.com/2011/02/21/why-log-returns/
 
 Next we calculate the variance, stddev, mean and drift for stock returns and use these values to estimate the expected
 returns over a random distribution for a set number of days (rows) and iterations (array size in `valueArray` column).
 
-Here, the drift is defined as:
-    drift = mean(log_returns) - 0.5 * variance(log_returns)
+Here, the drift is defined as:  
+    `drift = mean(log_returns) - 0.5 * variance(log_returns)`
 
-And expected return (Z Score) is calculated as:
-     exp(drift + deviation * distribution.inverseCumulativeProbability(value)
+And expected return (Z Score) is calculated as:  
+     `exp(drift + deviation * distribution.inverseCumulativeProbability(value)`
 
+```log
 2019-11-25 00:46:53,530 -0600 [ForkJoinPool-1-worker-5] INFO  (RunMontecarloSimulation.scala:46) - MSFT stock returns variance: 4.511899231076514E-4
 2019-11-25 00:46:53,531 -0600 [ForkJoinPool-1-worker-5] INFO  (RunMontecarloSimulation.scala:47) - MSFT stock returns deviation: 0.021241231675862192
 2019-11-25 00:46:53,531 -0600 [ForkJoinPool-1-worker-5] INFO  (RunMontecarloSimulation.scala:48) - MSFT stock returns mean: 1.0144483073271711E-4
 2019-11-25 00:46:53,536 -0600 [ForkJoinPool-1-worker-5] INFO  (RunMontecarloSimulation.scala:49) - MSFT stock returns drift: -1.241501308211086E-4
+```
 
     Table: Expected future returns (Z scores)
     +--------------------+
@@ -153,9 +165,10 @@ The above process is done for each stock symbol (eg. AMZN,AAPL,MSFT) in the port
 Finally, we make use of a dummy investment stratagy to buy and sell stocks on each simulation day. On the first day, 
 equal amount of money is allocated for buying each of the symbols in the portfolio. There after, stocks are bought/sold 
 when the mean percentage change in the past days of simulation is greater/less than 0 respectively for each symbol.
+
 Buying happens incrementally, where as selling is cumulative.
 On the last day, all stocks are sold and profit/loss is booked.
-    
+
     Table: Investment details for each simulation day (some columns hidden and values truncated for display)
     +---+-----------+------------------+-+--------------------+--------------+-------------+------------------+-------+
     | id|stockSymbol|    predictedValue|.|     mean_pct_change|quantityBought|   marketCost|    remainingFunds|outlook|
@@ -230,45 +243,49 @@ On the last day, all stocks are sold and profit/loss is booked.
     change: 8.966399018138436%
 
 
----------------------
-4. Setup Instructions
----------------------
+
+4\. Setup Instructions
+----------------------
 
 Something to note, absolute paths are almost always preferred. Make sure to use correct file system URI.
 For example, if the file 'hw2/src/main/resources/data/' is on a ordinary filesystem, within the users home directory,
-use:
-    file://$HOME/hw2/src/main/resources/data/
+use:  
+    `file://$HOME/hw2/src/main/resources/data/`
 
-Similarly, for file on HDFS,
-    use hdfs://$HOSTNAME:PORT/some-path/
+Similarly, for file on HDFS, use `hdfs://$HOSTNAME:PORT/some-path/`
 
-For S3 bucket use,
-    s3://bucket-name/some-path/
+For S3 bucket, use `s3://bucket-name/some-path/`
 
 1. Setup Hadoop and Spark using bootstrap script and start all services
-    git clone "https://github.com/user501254/BD_STTP_2016.git"; cd BD_STTP_2016; chmod +x *.sh; 
-    InstallHadoop.sh; InstallSpark.sh; start-all.sh
+
+        git clone "https://github.com/user501254/BD_STTP_2016.git"; cd BD_STTP_2016; chmod +x *.sh; 
+        InstallHadoop.sh; InstallSpark.sh; start-all.sh
 
 2. Clone this repository
-    git clone https://asing80@bitbucket.org/asing80/hw3.git
+
+        git clone https://asing80@bitbucket.org/asing80/hw3.git
 
 3. Download the stock data in CSV format
-    ./hw3/src/main/resources/bin/downloadsymboldata.sh $API_KEY $SYMBOL
+
+        ./hw3/src/main/resources/bin/downloadsymboldata.sh $API_KEY $SYMBOL
 
 4. Run jar file using `spark-submit`
-    spark-submit hw3-assembly-0.1.jar \
-      hw3/src/main/resources/data/ \
-      MSFT,AAPL,AMZN 10 10 10000
 
-For AWS EMR, please follow these steps:
+        spark-submit hw3-assembly-0.1.jar \
+          hw3/src/main/resources/data/ \
+          MSFT,AAPL,AMZN 10 10 10000
+
+For AWS EMR, please follow these steps:  
     https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-launch-custom-jar-cli.html
+
 Input S3 bucket locations should be passed to the JAR file and must be accessible.
 
 
-----------------
-6. Usage Details
-----------------
 
+5\. Usage Details
+-----------------
+
+```text
 java com.ashessin.cs441.hw3.stocksim.Start <option> \
     <absolute_csv_directory_path> <symbols> <period> <iterations> <value>
 
@@ -312,19 +329,19 @@ examples:
 	java com.ashessin.cs441.hw3.stocksim.Start \
     	--simulate hdfs://localhost:9000/absolute-path-to-input-directory/ \
 	    MSFT,APPAL,AMZN 28 10 10000
+```
 
 
--------------------------
-6. Visualization and Demo
--------------------------
+
+6\. Visualization and Demo
+--------------------------
 
 The program in its default configuration produces a number of tables, which can used for visualization.
-Some samples along with demo for sample runs on Google Dataproc are available at:
+Some samples along with demo for sample runs on Google Dataproc are available at:  
     https://asing80.people.uic.edu/cs441/hw3/
 
 
-----------------------------
-7. Map Reduce Implementation
-----------------------------
+
+7\. Map Reduce Implementation
+-----------------------------
 TODO
-```
